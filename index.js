@@ -1,15 +1,17 @@
 const express = require('express')
 const app = express()
 const axios = require('axios');
-const serverList = require('./serverList')
+const servers = require('./serverList')
 
 let currentServerIndex = 0, currentServer;
-
+let serverList = servers;
+let allServers = servers;
 app.listen(80, function (err) {
   if (err) console.log("Error in server setup");
   console.log("Server listening on Port", 80);
   setInterval(() => {
     healthCheckCurrentServer();
+    healthCheckAllServers();
   }, 10000);
 })
 
@@ -19,7 +21,7 @@ const handler = async (req, res) => {
   currentServerIndex = currentServerIndex % (serverList.length);
   try {
     const response = await axios.get(currentServer);
-    console.log('running',currentServer);
+    console.log('running', currentServer);
     res.send(response.data);
   }
   catch (err) {
@@ -28,7 +30,21 @@ const handler = async (req, res) => {
   }
 }
 
+const healthCheckAllServers = async () => {
+  for (server of allServers) {
+    if (!serverList.includes(server)) {
+      try {
+        const response = await axios.get(currentServer);
+        if (response.data) {
+          console.log(`adding server ${server} back in serverList`);
+          serverList.push(server);
+        }
+      } catch (e) { }
+    }
+  }
+}
 const healthCheckCurrentServer = async () => {
+  console.log(serverList);
   if (currentServer) {
     try {
       console.log('Running health check for', currentServer);
@@ -38,7 +54,10 @@ const healthCheckCurrentServer = async () => {
       }
     }
     catch (e) {
-      console.log(`health of server ${currentServer} failed running ${serverList[currentServerIndex]}`);
+      serverList = serverList.filter(function (itm) {
+        return itm !== currentServer;
+      })
+      console.log(`health of server ${currentServer} failed }`);
     }
 
   }
@@ -46,4 +65,5 @@ const healthCheckCurrentServer = async () => {
 app.use((req, res) => {
   handler(req, res);
 })
+
 
