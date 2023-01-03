@@ -11,26 +11,31 @@ app.listen(80, function (err) {
   console.log("Server listening on Port", 80);
   setInterval(() => {
     healthCheckCurrentServer();
-    healthCheckAllServers();
+    healthCheckDownServers();
   }, 10000);
 })
 
 const handler = async (req, res) => {
-  currentServer = serverList[currentServerIndex];
-  currentServerIndex++;
-  currentServerIndex = currentServerIndex % (serverList.length);
-  try {
-    const response = await axios.get(currentServer);
-    console.log('running', currentServer);
-    res.send(response.data);
+  if (serverList.length) {
+    currentServer = serverList[currentServerIndex];
+    currentServerIndex++;
+    currentServerIndex = currentServerIndex % (serverList.length);
+    try {
+      const response = await axios.get(currentServer);
+      console.log('running', currentServer);
+      res.send(response.data);
+    }
+    catch (err) {
+      console.log(`server ${currentServer} failed running ${serverList[currentServerIndex]}`);
+      handler(req, res);
+    }
   }
-  catch (err) {
-    console.log(`server ${currentServer} failed running ${serverList[currentServerIndex]}`);
-    handler(req, res);
+  else {
+    res.send('No servers available');
   }
 }
 
-const healthCheckAllServers = async () => {
+const healthCheckDownServers = async () => {
   for (server of allServers) {
     if (!serverList.includes(server)) {
       try {
